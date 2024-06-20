@@ -1,4 +1,5 @@
 import { sql } from '@vercel/postgres';
+import { unstable_noStore as noStore } from 'next/cache';
 import {
   CustomerField,
   CustomersTableType,
@@ -10,20 +11,21 @@ import {
 } from './definitions';
 import { formatCurrency } from './utils';
 
+//获取收入
 export async function fetchRevenue() {
   // Add noStore() here to prevent the response from being cached.
   // This is equivalent to in fetch(..., {cache: 'no-store'}).
-
+  noStore();
   try {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
 
-    // console.log('Fetching revenue data...');
-    // await new Promise((resolve) => setTimeout(resolve, 3000));
+    console.log('Fetching revenue data...');
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const data = await sql<Revenue>`SELECT * FROM revenue`;
 
-    // console.log('Data fetch completed after 3 seconds.');
+    console.log('Data fetch completed after 3 seconds.');
 
     return data.rows;
   } catch (error) {
@@ -32,7 +34,9 @@ export async function fetchRevenue() {
   }
 }
 
+//获取最新发票
 export async function fetchLatestInvoices() {
+  noStore();
   try {
     const data = await sql<LatestInvoiceRaw>`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
@@ -52,13 +56,22 @@ export async function fetchLatestInvoices() {
   }
 }
 
+//获取卡数据
 export async function fetchCardData() {
+  noStore();
   try {
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
+    // 中文注释：您可能可以将这些组合成单个 SQL 查询
+    // 但是，我们有意将它们拆分为多个查询，以演示
+    // 如何在 JS 中并行初始化多个查询。
+    
+    //invoiceCountPromise: 中文: 发票计数承诺
     const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
+    //customerCountPromise: 中文: 客户计数承诺
     const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
+    //invoiceStatusPromise: 中文: 发票状态承诺
     const invoiceStatusPromise = sql`SELECT
          SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
          SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
@@ -70,9 +83,13 @@ export async function fetchCardData() {
       invoiceStatusPromise,
     ]);
 
+    //中文: 发票计数
     const numberOfInvoices = Number(data[0].rows[0].count ?? '0');
+    //中文: 客户计数
     const numberOfCustomers = Number(data[1].rows[0].count ?? '0');
+    //中文: 总支付发票
     const totalPaidInvoices = formatCurrency(data[2].rows[0].paid ?? '0');
+    //中文: 总待支付发票
     const totalPendingInvoices = formatCurrency(data[2].rows[0].pending ?? '0');
 
     return {
@@ -88,10 +105,12 @@ export async function fetchCardData() {
 }
 
 const ITEMS_PER_PAGE = 6;
+//获取发票
 export async function fetchFilteredInvoices(
   query: string,
   currentPage: number,
 ) {
+  noStore();
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
@@ -123,7 +142,9 @@ export async function fetchFilteredInvoices(
   }
 }
 
+//获取发票页数
 export async function fetchInvoicesPages(query: string) {
+  noStore();
   try {
     const count = await sql`SELECT COUNT(*)
     FROM invoices
@@ -144,7 +165,9 @@ export async function fetchInvoicesPages(query: string) {
   }
 }
 
+//获取发票通过ID
 export async function fetchInvoiceById(id: string) {
+  noStore();
   try {
     const data = await sql<InvoiceForm>`
       SELECT
@@ -169,7 +192,9 @@ export async function fetchInvoiceById(id: string) {
   }
 }
 
+//获取客户
 export async function fetchCustomers() {
+  noStore();
   try {
     const data = await sql<CustomerField>`
       SELECT
@@ -187,7 +212,9 @@ export async function fetchCustomers() {
   }
 }
 
+//获取客户通过ID
 export async function fetchFilteredCustomers(query: string) {
+  noStore();
   try {
     const data = await sql<CustomersTableType>`
 		SELECT
@@ -220,6 +247,7 @@ export async function fetchFilteredCustomers(query: string) {
   }
 }
 
+//获取用户
 export async function getUser(email: string) {
   try {
     const user = await sql`SELECT * FROM users WHERE email=${email}`;
